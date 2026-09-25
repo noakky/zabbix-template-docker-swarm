@@ -36,21 +36,35 @@ This template has been tested on:
 
 Setup and configure Zabbix agent 2 with the Docker monitoring plugin on every swarm node. The user by which the Zabbix agent 2 is running should have access permissions to the Docker socket. The `docker` CLI and `curl` are required on the node.
 
-1. Copy `files/swarm.sh` and `files/swarm.conf` to `/etc/zabbix/zabbix_agent2.d/userparameters.d/` and make the script executable:
+1. Add the `zabbix` user to the `docker` group to give Zabbix agent 2 access to the Docker socket, and check the access:
+
+   ```
+   usermod -aG docker zabbix
+   sudo -u zabbix docker info --format '{{.Swarm.LocalNodeState}}'
+   ```
+
+   The second command should print `active`.
+
+2. Copy `files/swarm.sh` and `files/swarm.conf` to `/etc/zabbix/zabbix_agent2.d/userparameters.d/` and make the script executable:
 
    ```
    chmod 755 /etc/zabbix/zabbix_agent2.d/userparameters.d/swarm.sh
    ```
 
-2. Add to `zabbix_agent2.conf`:
+3. Add to `zabbix_agent2.conf`:
 
    ```
    Include=/etc/zabbix/zabbix_agent2.d/userparameters.d/*.conf
    UserParameterDir=/etc/zabbix/zabbix_agent2.d/userparameters.d
    ```
 
-3. Restart Zabbix agent 2.
-4. Import the template and link `Docker Swarm by Zabbix agent 2` to the host instead of `Docker by Zabbix agent 2`.
+4. Restart Zabbix agent 2, so it picks up the new group membership and the user parameter:
+
+   ```
+   systemctl restart zabbix-agent2
+   ```
+
+5. Import the template and link `Docker Swarm by Zabbix agent 2` to the host instead of `Docker by Zabbix agent 2`.
 
 Test availability: `zabbix_get -s docker-host -k swarm.services.get`
 
@@ -60,7 +74,7 @@ Test availability: `zabbix_get -s docker-host -k swarm.services.get`
 |----|-----------|-------|
 |{$SWARM.LLD.FILTER.SERVICE.MATCHES}|<p>Filter of discoverable swarm services.</p>|`.*`|
 |{$SWARM.LLD.FILTER.SERVICE.NOT_MATCHES}|<p>Filter to exclude discovered swarm services.</p>|`CHANGE_IF_NEEDED`|
-|{$SWARM.NODATA.TIMEOUT}|<p>Period without data from swarm.sh after which the trigger fires.</p>|`10m`|
+|{$SWARM.NODATA.TIMEOUT}|<p>Period without data after which the "Failed to fetch swarm data" trigger fires.</p>|`10m`|
 |{$SWARM.SERVICE.CPU.UTIL.MAX}|<p>Threshold of the service CPU usage, % of one core. Supports context: {$SWARM.SERVICE.CPU.UTIL.MAX:"stack_service"}.</p>|`90`|
 |{$SWARM.SERVICE.CPU.UTIL.TIME}|<p>Period of the high CPU usage trigger.</p>|`15m`|
 |{$SWARM.SERVICE.MEM.UTIL.MAX}|<p>Threshold of the service task memory utilization, %. Supports context.</p>|`90`|
@@ -82,7 +96,7 @@ Test availability: `zabbix_get -s docker-host -k swarm.services.get`
 
 |Name|Description|Expression|Severity|Dependencies and additional info|
 |----|-----------|----------|--------|--------------------------------|
-|Swarm: No data from swarm.sh|<p>Zabbix has not received data from swarm.sh for {$SWARM.NODATA.TIMEOUT}. Check the UserParameter and access of the Zabbix agent user to the Docker socket.</p>|`nodata(/Docker Swarm by Zabbix agent 2/swarm.services.count,{$SWARM.NODATA.TIMEOUT})=1`|Warning||
+|Swarm: Failed to fetch swarm data|<p>Zabbix has not received data for items for the last {$SWARM.NODATA.TIMEOUT}.</p>|`nodata(/Docker Swarm by Zabbix agent 2/swarm.services.count,{$SWARM.NODATA.TIMEOUT})=1`|Warning|**Manual close**: Yes|
 
 ### LLD rule Swarm services discovery
 

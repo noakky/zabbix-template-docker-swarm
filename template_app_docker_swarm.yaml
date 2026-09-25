@@ -240,9 +240,10 @@ zabbix_export:
           triggers:
             - uuid: a2b92afb6817409ba428a10903c3e0d8
               expression: 'nodata(/Docker Swarm by Zabbix agent 2/swarm.services.count,{$SWARM.NODATA.TIMEOUT})=1'
-              name: 'Swarm: No data from swarm.sh'
+              name: 'Swarm: Failed to fetch swarm data'
               priority: WARNING
-              description: 'Zabbix has not received data from swarm.sh for {$SWARM.NODATA.TIMEOUT}. Check the UserParameter and access of the Zabbix agent user to the Docker socket.'
+              description: 'Zabbix has not received data for items for the last {$SWARM.NODATA.TIMEOUT}.'
+              manual_close: 'YES'
               tags:
                 - tag: scope
                   value: availability
@@ -1378,7 +1379,7 @@ zabbix_export:
           description: 'Filter to exclude discovered swarm services.'
         - macro: '{$SWARM.NODATA.TIMEOUT}'
           value: '10m'
-          description: 'Period without data from swarm.sh after which the trigger fires.'
+          description: 'Period without data after which the "Failed to fetch swarm data" trigger fires.'
         - macro: '{$SWARM.SERVICE.CPU.UTIL.MAX}'
           value: '90'
           description: 'Threshold of the service CPU usage, % of one core. Supports context: {$SWARM.SERVICE.CPU.UTIL.MAX:"stack_service"}.'
